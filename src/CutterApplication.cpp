@@ -124,7 +124,7 @@ CutterApplication::CutterApplication(int &argc, char **argv, bool test) : QAppli
         plugin->registerDecompilers();
     }
 
-    mainWindow = new MainWindow();
+    mainWindow = new MainWindow(nullptr, test);
     installEventFilter(mainWindow);
 
     // set up context menu shortcut display fix

@@ -121,15 +121,18 @@ T *getNewInstance(MainWindow *m) { return new T(m); }
 
 using namespace Cutter;
 
-MainWindow::MainWindow(QWidget *parent) :
+MainWindow::MainWindow(QWidget *parent, bool testMode) :
     QMainWindow(parent),
     core(Core()),
+    testMode(testMode),
     ui(new Ui::MainWindow)
 {
     tabsOnTop = false;
     configuration = Config();
 
-    initUI();
+    if (!testMode) {
+        initUI();
+    }
 }
 
 MainWindow::~MainWindow()

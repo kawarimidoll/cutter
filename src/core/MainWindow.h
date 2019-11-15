@@ -205,6 +205,8 @@ private slots:
 private:
     CutterCore *core;
 
+    bool testMode;
+
     bool tabsOnTop;
     ut64 hexdumpTopOffset;
     ut64 hexdumpBottomOffset;
