@@ -46,8 +46,9 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU"
     set_source_files_properties(${BINDINGS_SOURCE} PROPERTIES COMPILE_FLAGS -w)
 endif()
 
-
-add_executable(Cutter ${UI_FILES} ${QRC_FILES} ${PLATFORM_RESOURCES} ${SOURCE_FILES} ${HEADER_FILES} ${BINDINGS_SOURCE})
+list(REMOVE_ITEM SOURCE_FILES Main.cpp)
+add_library(CutterLib OBJECT ${UI_FILES} ${QRC_FILES} ${PLATFORM_RESOURCES} ${SOURCE_FILES} ${HEADER_FILES} ${BINDINGS_SOURCE})
+add_executable(Cutter Main.cpp)
 set_target_properties(Cutter PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY ..
         PDB_OUTPUT_DIRECTORY ..
@@ -61,17 +62,26 @@ foreach(_dir ${CUTTER_INCLUDE_DIRECTORIES})
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/${_dir}>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/cutter/${_dir}>
     )
+    target_include_directories(CutterLib PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/${_dir}>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/cutter/${_dir}>
+    )
 endforeach()
+target_link_libraries(Cutter CutterLib)
+
+if(CUTTER_ENABLE_TESTS)
+    add_subdirectory(test)
+endif()
 
 if (TARGET Graphviz::GVC)
-    target_link_libraries(Cutter PRIVATE Graphviz::GVC)
-    target_compile_definitions(Cutter PRIVATE CUTTER_ENABLE_GRAPHVIZ)
+    target_link_libraries(CutterLib PRIVATE Graphviz::GVC)
+    target_compile_definitions(CutterLib PRIVATE CUTTER_ENABLE_GRAPHVIZ)
 endif()
 
 if(CUTTER_ENABLE_CRASH_REPORTS)
     set(THREADS_PREFER_PTHREAD_FLAG ON)
     find_package(Threads REQUIRED)
-    target_link_libraries(Cutter PRIVATE Threads::Threads)
+    target_link_libraries(CutterLib PRIVATE Threads::Threads)
 
     add_definitions(-DCUTTER_ENABLE_CRASH_REPORTS)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g ")
@@ -79,14 +89,19 @@ if(CUTTER_ENABLE_CRASH_REPORTS)
         include_directories("${BREAKPAD_FRAMEWORK_DIR}/Breakpad.framework/Headers")
         set_target_properties(Cutter PROPERTIES LINK_FLAGS "-Wl,-F${BREAKPAD_FRAMEWORK_DIR}")
         target_link_libraries(Cutter PRIVATE "-framework Breakpad")
+        if(CUTTER_ENABLE_TESTS)
+            set_target_properties(CutterTest PROPERTIES LINK_FLAGS "-Wl,-F${BREAKPAD_FRAMEWORK_DIR}")
+            target_link_libraries(CutterTest "-framework Breakpad")
+        endif()
     else()
         find_package(Breakpad REQUIRED)
-        target_link_libraries(Cutter PRIVATE Breakpad::client)
+        target_link_libraries(CutterLib PRIVATE Breakpad::client)
     endif()
 endif()
 
-target_link_libraries(Cutter PUBLIC ${QT_PREFIX}::Core ${QT_PREFIX}::Widgets ${QT_PREFIX}::Gui PRIVATE  ${QT_PREFIX}::Svg ${QT_PREFIX}::Network)
-target_link_libraries(Cutter PUBLIC ${RIZIN_TARGET})
+
+target_link_libraries(CutterLib PUBLIC ${QT_PREFIX}::Core ${QT_PREFIX}::Widgets ${QT_PREFIX}::Gui PRIVATE  ${QT_PREFIX}::Svg ${QT_PREFIX}::Network)
+target_link_libraries(CutterLib PUBLIC ${RIZIN_TARGET})
 if(CUTTER_ENABLE_PYTHON)
     if (WIN32)
         # On windows some of the Python STABLE API functions are in seperate library
@@ -96,15 +111,15 @@ if(CUTTER_ENABLE_PYTHON)
             if((NOT _PYTHON_LIBRARY STREQUAL "optimized") AND (NOT _PYTHON_LIBRARY STREQUAL "debug"))
                 get_filename_component(_PYTHON_LIB_DIR ${_PYTHON_LIBRARY} DIRECTORY)
                 message(STATUS "Add extra library dir for Python: ${_PYTHON_LIB_DIR}")
-                target_link_directories(Cutter PRIVATE ${_PYTHON_LIB_DIR})
+                target_link_directories(CutterLib PRIVATE ${_PYTHON_LIB_DIR})
             endif()
         endforeach()
     endif()
-    target_link_libraries(Cutter PRIVATE ${PYTHON_LIBRARIES})
+    target_link_libraries(CutterLib PRIVATE ${PYTHON_LIBRARIES})
     if(CUTTER_ENABLE_PYTHON_BINDINGS)
-        target_link_libraries(Cutter PRIVATE Shiboken2::libshiboken PySide2::pyside2)
+        target_link_libraries(CutterLib PRIVATE Shiboken2::libshiboken PySide2::pyside2)
 
-        get_target_property(RAW_BINDINGS_INCLUDE_DIRS Cutter INCLUDE_DIRECTORIES)
+        get_target_property(RAW_BINDINGS_INCLUDE_DIRS CutterLib INCLUDE_DIRECTORIES)
         set(BINDINGS_INCLUDE_DIRS "")
         foreach(_dir ${RAW_BINDINGS_INCLUDE_DIRS})
             string(REGEX REPLACE "\\$<BUILD_INTERFACE:(.*)>" "\\1" _dir ${_dir})
@@ -114,10 +129,6 @@ if(CUTTER_ENABLE_PYTHON)
             endif()
         endforeach()
 
-<<<<<<< HEAD
-=======
-        get_target_property(BINDINGS_INCLUDE_DIRS CutterLib INCLUDE_DIRECTORIES)
->>>>>>> Fix travis
         if(APPLE AND _qt5Core_install_prefix)
             list(APPEND BINDINGS_INCLUDE_DIRS "${_qt5Core_install_prefix}/include")
             list(APPEND BINDINGS_INCLUDE_DIRS "${_qt5Core_install_prefix}/include/QtCore")
@@ -137,8 +148,8 @@ if(CUTTER_ENABLE_PYTHON)
 endif()
 
 if(TARGET KF5::SyntaxHighlighting)
-    target_link_libraries(Cutter PRIVATE KF5::SyntaxHighlighting)
-    target_compile_definitions(Cutter PRIVATE CUTTER_ENABLE_KSYNTAXHIGHLIGHTING)
+    target_link_libraries(CutterLib PRIVATE KF5::SyntaxHighlighting)
+    target_compile_definitions(CutterLib PRIVATE CUTTER_ENABLE_KSYNTAXHIGHLIGHTING)
 endif()
 
 if (CUTTER_APPIMAGE_BUILD)
@@ -156,7 +167,7 @@ endif()
 include(Translations)
 
 # Install files
-install(TARGETS Cutter
+install(TARGETS Cutter CutterLib
         EXPORT CutterTargets
         RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
         BUNDLE DESTINATION "." # needs to be tested
@@ -183,8 +194,4 @@ if(UNIX AND NOT APPLE)
     install(FILES "org.rizin.Cutter.desktop"
         DESTINATION "share/applications"
         COMPONENT Devel)
-endif()
-
-if(CUTTER_ENABLE_TESTS)
-    add_subdirectory(test)
 endif()
