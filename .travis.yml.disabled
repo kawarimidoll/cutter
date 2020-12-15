@@ -198,7 +198,7 @@ script:
                 -DCUTTER_ENABLE_TESTS=ON
                 .. &&
             make -j4;
-            ./test/CutterTest;
+            ./src/test/CutterTest;
        elif [[ "$BUILD_SYSTEM" == "cmake_nodep" ]]; then
             cmake
                 -DCMAKE_BUILD_TYPE=Release
@@ -233,7 +233,7 @@ script:
                 -DCUTTER_ENABLE_TESTS=ON
                 .. &&
             make -j4;
-            ./test/CutterTest;
+            ./src/test/CutterTest;
        fi
     fi
 
